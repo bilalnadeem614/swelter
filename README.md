@@ -2,7 +2,6 @@
 
 An autonomous AI agent that monitors hyperlocal heat risk and maintains OSHA compliance records for small construction and landscaping contractors. Built solo for FortyGuard's Hackathon'26.
 
-![Swelter Dashboard](swelter_dashboard.png)
 
 ## Problem
 
