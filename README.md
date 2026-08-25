@@ -19,8 +19,6 @@ This provides small contractors enterprise-grade protection and audit trails at 
 
 ## How it Works
 
-![Swelter Architecture](swelter_architecture.png)
-
 1. GitHub Actions cron triggers the `/api/check-heat` endpoint
 2. FastAPI fetches current and forecast readings from FortyGuard 
 3. Readings are saved to Supabase
@@ -30,31 +28,25 @@ This provides small contractors enterprise-grade protection and audit trails at 
 7. React dashboard displays zone status and decision history
 
 ## Tech Stack
-- Frontend: React on Vercel
-- Backend: FastAPI on Vercel Serverless 
+- Frontend: React
+- Backend: FastAPI
 - Database: Supabase Postgres
 - Scheduler: GitHub Actions
 - LLM: Gemini API
 - Notifications: Slack Webhook
 
 ## Repo Structure
-- `api/` - FastAPI endpoints
-- `web/` - React frontend
+- `backend/` - FastAPI endpoints
+- `frontend/` - React frontend
 - `db/` - Supabase migrations
-- `.github/workflows/` - GitHub Actions cron  
+- `.github/workflows/` - GitHub Actions cron
 
 ## Local Setup
 1. Clone repo 
 2. Copy `.env.example` to `.env` and populate keys
-3. Run `yarn install` in `web/`
-4. Run `uvicorn api.main:app` in `api/`
-5. Run `yarn dev` in `web/`
-
-## Deployment
-1. Web: `yarn build` in `web/`, then `vercel --prod`  
-2. API: Push to `main` branch, Vercel auto-deploys
-3. DB: Push migration files in `db/`, Supabase auto-applies  
-4. Cron: `.github/workflows/check-heat.yml` runs on push to `main`
+3. Run `npm install` in `frontend/`
+4. Run `uvicorn main:app` in `backend/`
+5. Run `npm run dev` in `frontend/`
 
 ## License
 MIT
