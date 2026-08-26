@@ -11,7 +11,7 @@ Small contractors manage heat safety manually by checking weather apps, creating
 Swelter is a hardware-free agent that:
 1. Polls the FortyGuard Temperature API for custom watch zones
 2. Uses AI reasoning (Gemini LLM) to assess risk and decide actions
-3. Executes alerts via Slack and logs timestamped decisions to Supabase
+3. Surfaces its decisions through an in-app agent chat feed and logs every decision to Supabase
 4. Runs autonomously on a GitHub Actions schedule
 5. Visualizes every zone on an interactive map, color-coded by current risk level
 
@@ -25,10 +25,11 @@ This provides small contractors enterprise-grade protection and audit trails at 
 2. FastAPI fetches current and forecast readings from FortyGuard
 3. Readings are saved to Supabase
 4. FastAPI prompts Gemini with readings + previous decisions
-5. Gemini returns a reasoned action (none, alert, reschedule, escalate)
-6. Action is logged to Supabase and Slack is notified if needed
-7. React dashboard displays an interactive map (zones color-coded by risk, click for reasoning)
-   alongside the full decision history and a manual "Check Now" trigger
+5. Gemini returns a reasoned action (none, alert, reschedule, escalate) with plain-language reasoning
+6. The decision is logged to Supabase
+7. The website's agent chat feed and interactive map both render straight from that same
+   decision data — no external notification service involved
+8. A manual "Check Now" button lets you trigger a check on demand
 
 ## Tech Stack
 - Frontend: React (Vite)
@@ -36,7 +37,6 @@ This provides small contractors enterprise-grade protection and audit trails at 
 - Database: Supabase Postgres
 - Scheduler: GitHub Actions
 - LLM: Gemini API
-- Notifications: Slack Webhook
 - Mapping: Mapbox GL JS (react-map-gl)
 
 ## Repo Structure
@@ -47,7 +47,7 @@ This provides small contractors enterprise-grade protection and audit trails at 
 
 ## Local Setup
 1. Clone repo
-2. Copy `.env.example` to `.env` and populate keys (Supabase, Gemini, Slack, Mapbox, agent secret)
+2. Copy `.env.example` to `.env` and populate keys (Supabase, Gemini, Mapbox, agent secret)
 3. Run `npm install` in `frontend/`
 4. Run `uvicorn main:app` in `backend/`
 5. Run `npm run dev` in `frontend/`
