@@ -2,10 +2,9 @@
 
 An autonomous AI agent that monitors hyperlocal heat risk and maintains OSHA compliance records for small construction and landscaping contractors. Built solo for FortyGuard's Hackathon'26.
 
-
 ## Problem
 
-Small contractors manage heat safety manually by checking weather apps, creating inconsistency, lack of documentation, and liability exposure. Existing tools are either informational-only or enterprise-priced.
+Small contractors manage heat safety manually by checking weather apps, creating inconsistency, lack of documentation, and liability exposure. Existing tools are either informational-only, paperwork-only, or enterprise-priced hardware platforms.
 
 ## Solution
 
@@ -14,26 +13,31 @@ Swelter is a hardware-free agent that:
 2. Uses AI reasoning (Gemini LLM) to assess risk and decide actions
 3. Executes alerts via Slack and logs timestamped decisions to Supabase
 4. Runs autonomously on a GitHub Actions schedule
+5. Visualizes every zone on an interactive map, color-coded by current risk level
 
 This provides small contractors enterprise-grade protection and audit trails at an accessible price.
 
 ## How it Works
 
+<!-- ![Swelter Architecture](swelter_architecture.png) -->
+
 1. GitHub Actions cron triggers the `/api/check-heat` endpoint
-2. FastAPI fetches current and forecast readings from FortyGuard 
+2. FastAPI fetches current and forecast readings from FortyGuard
 3. Readings are saved to Supabase
 4. FastAPI prompts Gemini with readings + previous decisions
-5. Gemini returns a reasoned action (none, alert, reschedule, escalate)  
+5. Gemini returns a reasoned action (none, alert, reschedule, escalate)
 6. Action is logged to Supabase and Slack is notified if needed
-7. React dashboard displays zone status and decision history
+7. React dashboard displays an interactive map (zones color-coded by risk, click for reasoning)
+   alongside the full decision history and a manual "Check Now" trigger
 
 ## Tech Stack
-- Frontend: React
-- Backend: FastAPI
+- Frontend: React (Vite)
+- Backend: FastAPI (Vercel serverless)
 - Database: Supabase Postgres
 - Scheduler: GitHub Actions
 - LLM: Gemini API
 - Notifications: Slack Webhook
+- Mapping: Mapbox GL JS (react-map-gl)
 
 ## Repo Structure
 - `backend/` - FastAPI endpoints
@@ -42,8 +46,8 @@ This provides small contractors enterprise-grade protection and audit trails at 
 - `.github/workflows/` - GitHub Actions cron
 
 ## Local Setup
-1. Clone repo 
-2. Copy `.env.example` to `.env` and populate keys
+1. Clone repo
+2. Copy `.env.example` to `.env` and populate keys (Supabase, Gemini, Slack, Mapbox, agent secret)
 3. Run `npm install` in `frontend/`
 4. Run `uvicorn main:app` in `backend/`
 5. Run `npm run dev` in `frontend/`
