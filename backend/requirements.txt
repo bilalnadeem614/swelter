@@ -9,4 +9,4 @@ supabase==2.31.0
 # supabase-functions==2.31.0
 google-generativeai==0.8.2
 python-dotenv==1.0.1
-pydantic-settings==2.15.0
+pydantic-settings>=2.5.2,<3.0.0
