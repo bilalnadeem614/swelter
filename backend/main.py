@@ -76,7 +76,7 @@ async def _process_zone(client: FortyGuardClient, zone: dict) -> bool:
     )
     reading_id = reading.data[0]["id"]
 
-    action, reasoning = await decide(current_temp_f, forecast_12h)
+    action, reasoning = await decide(zone["id"], current_temp_f, forecast_12h)
 
     supabase.table("decisions").insert(
         {
