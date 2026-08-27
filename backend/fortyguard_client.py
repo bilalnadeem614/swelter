@@ -12,10 +12,15 @@ BASE_URL = "https://api.fortyguard.com/v1"
 ZONE_HALF_WIDTH_DEG = 0.02
 GRANULARITY = 60
 
-# ponytail: live testing (2026-08-26) showed the API has a ~3-4hr data-freshness lag — querying
-# the literal current instant returns zero tiles, while now-5h reliably returns data. Confirmed
-# boundary sits between 3h and 4h; 5h is a safety margin, not the measured lag itself.
-FRESHNESS_LAG = timedelta(hours=5)
+# ponytail: re-verified 2026-08-27 via a standalone lag-sweep test (see decisions.md)
+# — freshness lag is NOT ~3-4h as originally measured on 2026-08-26. Sweep tested
+# 1h/3h/8h/12h/24h/48h back from now: 1h through 12h all returned n_cells=0 with no
+# temperature_stats; 24h and 48h both returned full data. Actual boundary sits
+# somewhere between 12h and 24h — using 25h as a safety margin above the confirmed-
+# working 24h mark. FortyGuard support confirmed no separate near-real-time endpoint
+# exists; this lag is a structural property of the API, not a transient issue.
+# Re-verify if this build is revisited later — no guarantee this is stable day to day.
+FRESHNESS_LAG = timedelta(hours=25)
 
 POLL_INTERVAL_S = 2.0
 POLL_TIMEOUT_S = 45.0  # per job; two jobs per zone run concurrently within the 60s function budget
