@@ -56,3 +56,15 @@ export async function triggerCheckNow(): Promise<{ processed: string[]; skipped:
   if (!res.ok) throw new Error(`check-heat failed: ${res.status}`)
   return res.json()
 }
+
+// Stretch A: read-only, no secret needed — public endpoint, hits the backend directly
+export async function askAgent(question: string): Promise<string> {
+  const res = await fetch(`${BASE_URL}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  })
+  if (!res.ok) throw new Error(`chat failed: ${res.status}`)
+  const data = await res.json()
+  return data.answer
+}

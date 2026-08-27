@@ -19,7 +19,7 @@ This provides small contractors enterprise-grade protection and audit trails at 
 
 ## How it Works
 
-<!-- ![Swelter Architecture](swelter_architecture.png) -->
+![Swelter Architecture](swelter_architecture.png)
 
 1. GitHub Actions cron triggers the `/api/check-heat` endpoint
 2. FastAPI fetches current and forecast readings from FortyGuard
@@ -29,7 +29,11 @@ This provides small contractors enterprise-grade protection and audit trails at 
 6. The decision is logged to Supabase
 7. The website's agent chat feed and interactive map both render straight from that same
    decision data — no external notification service involved
-8. A manual "Check Now" button lets you trigger a check on demand
+8. A manual "Check Now" button POSTs to a small Vercel serverless proxy (`frontend/api/check-heat.ts`)
+   that holds the check-heat secret server-side and forwards the trigger to the backend, so the
+   secret never ships in the frontend bundle
+9. The chat feed also accepts typed questions (`POST /api/chat`) — the agent answers using the
+   same live zone/decision data, without writing a new autonomous decision
 
 ## Tech Stack
 - Frontend: React (Vite)
@@ -37,7 +41,7 @@ This provides small contractors enterprise-grade protection and audit trails at 
 - Database: Supabase Postgres
 - Scheduler: GitHub Actions
 - LLM: Gemini API
-- Mapping: Mapbox GL JS (react-map-gl)
+- Mapping: react-leaflet + OpenStreetMap (Mapbox was planned but skipped — no signup/token needed)
 
 ## Repo Structure
 - `backend/` - FastAPI endpoints
@@ -47,10 +51,11 @@ This provides small contractors enterprise-grade protection and audit trails at 
 
 ## Local Setup
 1. Clone repo
-2. Copy `.env.example` to `.env` and populate keys (Supabase, Gemini, Mapbox, agent secret)
+2. Copy `.env.example` to `.env` and populate keys (Supabase, FortyGuard, Gemini, agent secret)
 3. Run `npm install` in `frontend/`
-4. Run `uvicorn main:app` in `backend/`
-5. Run `npm run dev` in `frontend/`
+4. Run `cd backend && uvicorn main:app --reload`
+5. Run `npm run dev` in `frontend/` (or `npx vercel dev` to also exercise `frontend/api/check-heat.ts`
+   locally — plain `npm run dev` doesn't execute serverless functions, see decisions.md)
 
 ## License
 MIT

@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from fortyguard_client import FortyGuardClient
-from gemini_reasoning import decide
+from gemini_reasoning import answer_question, decide
+from schemas import ChatQuestion
 from supabase_client import supabase
 
 app = FastAPI(title="Swelter")
@@ -69,6 +70,13 @@ async def latest_decisions():
     for row in rows:
         latest_by_zone.setdefault(row["zone_id"], row)
     return list(latest_by_zone.values())
+
+
+@app.post("/api/chat")
+async def chat(body: ChatQuestion):
+    # Stretch A (pulled forward from Day 4): read-only, grounded in live zone/decision data —
+    # does not write to `decisions`, this is a query not a new autonomous decision
+    return {"answer": await answer_question(body.question)}
 
 
 async def _process_zone(client: FortyGuardClient, zone: dict) -> bool:

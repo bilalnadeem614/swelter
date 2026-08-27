@@ -34,3 +34,7 @@ class Decision(BaseModel):
     reasoning: str
     notified: bool
     created_at: datetime
+
+
+class ChatQuestion(BaseModel):
+    question: str
