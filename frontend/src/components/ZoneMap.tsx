@@ -4,13 +4,21 @@ import type { LatLngBoundsExpression } from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { fetchZones, fetchLatestDecisions, type Zone, type Decision, type Action } from "@/lib/api"
+import { Badge } from "@/components/ui/badge"
+import { fetchZones, fetchLatestDecisions, forecastRangeF, type Zone, type Decision, type Action } from "@/lib/api"
 
 const ACTION_COLOR: Record<Action, string> = {
   none: "#22c55e",
   alert: "#eab308",
   reschedule: "#f97316",
   escalate: "#ef4444",
+}
+
+const ACTION_BADGE: Record<Action, "secondary" | "outline" | "destructive"> = {
+  none: "outline",
+  alert: "secondary",
+  reschedule: "secondary",
+  escalate: "destructive",
 }
 
 const ZOOM_ON_CLICK = 18
@@ -29,7 +37,9 @@ function ZoneMarkers({
   return (
     <>
       {zones.map((zone) => {
-        const action = latestByZone[zone.id]?.action ?? "none"
+        const decision = latestByZone[zone.id]
+        const action = decision?.action ?? "none"
+        const forecast = forecastRangeF(decision?.reading?.forecast_12h ?? null)
         return (
           <CircleMarker
             key={zone.id}
@@ -43,7 +53,34 @@ function ZoneMarkers({
               },
             }}
           >
-            <Popup>{zone.name}</Popup>
+            <Popup minWidth={220}>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{zone.name}</span>
+                  <Badge variant={ACTION_BADGE[action]} className="capitalize">
+                    {action}
+                  </Badge>
+                </div>
+                {decision?.reading ? (
+                  <p className="text-sm">
+                    {Math.round(decision.reading.temperature_f)}°F latest reading
+                    {forecast ? ` · ${forecast} next 12h` : ""}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No reading yet.</p>
+                )}
+                {decision ? (
+                  <>
+                    <p className="text-sm">{decision.reasoning}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(decision.created_at).toLocaleString()}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No decision yet.</p>
+                )}
+              </div>
+            </Popup>
           </CircleMarker>
         )
       })}
@@ -51,7 +88,13 @@ function ZoneMarkers({
   )
 }
 
-export function ZoneMap({ onZoneClick }: { onZoneClick: (zoneId: string) => void }) {
+export function ZoneMap({
+  onZoneClick,
+  refreshKey,
+}: {
+  onZoneClick: (zoneId: string) => void
+  refreshKey?: number
+}) {
   const [zones, setZones] = useState<Zone[] | null>(null)
   const [latestByZone, setLatestByZone] = useState<Record<string, Decision>>({})
   const [error, setError] = useState<string | null>(null)
@@ -63,7 +106,7 @@ export function ZoneMap({ onZoneClick }: { onZoneClick: (zoneId: string) => void
         setLatestByZone(Object.fromEntries(decisionRows.map((d) => [d.zone_id, d])))
       })
       .catch((err) => setError(err.message))
-  }, [])
+  }, [refreshKey])
 
   const bounds: LatLngBoundsExpression | undefined = zones?.length
     ? zones.map((z) => [z.lat, z.lng] as [number, number])
