@@ -118,8 +118,13 @@ export function ZoneMap({
         <CardTitle>Watch Zones</CardTitle>
       </CardHeader>
       <CardContent>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <p className="text-sm text-destructive">Couldn't load zones — {error}</p>
+        )}
         {!error && !zones && <Skeleton className="h-[400px] w-full rounded-lg" />}
+        {zones?.length === 0 && (
+          <p className="text-sm text-muted-foreground">No active watch zones configured.</p>
+        )}
         {zones && bounds && (
           <MapContainer
             bounds={bounds}

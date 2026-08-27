@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react"
-import { Bot } from "lucide-react"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { useEffect, useState, type FormEvent } from "react"
+import { Bot, User } from "lucide-react"
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { fetchDecisions, fetchZones, type Decision, type Action, type Zone } from "@/lib/api"
+import { askAgent, fetchDecisions, fetchZones, type Decision, type Action, type Zone } from "@/lib/api"
+
+type QaEntry = { id: number; question: string; answer?: string; pending?: boolean; error?: string }
 
 const ACTION_STYLE: Record<Action, { badge: "secondary" | "outline" | "destructive"; border: string }> = {
   none: { badge: "outline", border: "border-l-transparent" },
@@ -26,6 +29,24 @@ export function ChatFeed({
   const [decisions, setDecisions] = useState<Decision[] | null>(null)
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
+  const [qaLog, setQaLog] = useState<QaEntry[]>([])
+  const [question, setQuestion] = useState("")
+
+  async function handleAsk(e: FormEvent) {
+    e.preventDefault()
+    const q = question.trim()
+    if (!q) return
+    setQuestion("")
+    const id = Date.now()
+    setQaLog((log) => [...log, { id, question: q, pending: true }])
+    try {
+      const answer = await askAgent(q)
+      setQaLog((log) => log.map((entry) => (entry.id === id ? { ...entry, answer, pending: false } : entry)))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "failed to reach the agent"
+      setQaLog((log) => log.map((entry) => (entry.id === id ? { ...entry, error: message, pending: false } : entry)))
+    }
+  }
 
   useEffect(() => {
     setDecisions(null)
@@ -53,7 +74,9 @@ export function ChatFeed({
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <p className="text-sm text-destructive">Couldn't load activity — {error}</p>
+        )}
         {!error && !decisions && (
           <>
             <Skeleton className="h-16 w-full rounded-lg" />
@@ -93,7 +116,46 @@ export function ChatFeed({
             </div>
           )
         })}
+        {qaLog.map((entry) => (
+          <div key={entry.id} className="flex flex-col gap-2">
+            <div className="flex items-start justify-end gap-3">
+              <p className="max-w-[85%] rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">
+                {entry.question}
+              </p>
+              <Avatar>
+                <AvatarFallback>
+                  <User className="size-4" />
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <div className="flex items-start gap-3">
+              <Avatar>
+                <AvatarFallback>
+                  <Bot className="size-4" />
+                </AvatarFallback>
+              </Avatar>
+              {entry.pending && <Skeleton className="h-8 w-2/3 rounded-lg" />}
+              {entry.error && <p className="max-w-[85%] text-sm text-destructive">{entry.error}</p>}
+              {entry.answer && (
+                <p className="max-w-[85%] rounded-lg border bg-card px-3 py-2 text-sm">{entry.answer}</p>
+              )}
+            </div>
+          </div>
+        ))}
       </CardContent>
+      <CardFooter>
+        <form onSubmit={handleAsk} className="flex w-full gap-2">
+          <input
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Ask the agent, e.g. what's my riskiest zone right now?"
+            className="h-8 flex-1 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+          <Button type="submit" size="sm" disabled={!question.trim()}>
+            Ask
+          </Button>
+        </form>
+      </CardFooter>
     </Card>
   )
 }
