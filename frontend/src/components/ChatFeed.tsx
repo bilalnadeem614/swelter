@@ -17,9 +17,11 @@ const ACTION_STYLE: Record<Action, { badge: "secondary" | "outline" | "destructi
 export function ChatFeed({
   zoneId,
   onClearZone,
+  refreshKey,
 }: {
   zoneId?: string
   onClearZone?: () => void
+  refreshKey?: number
 }) {
   const [decisions, setDecisions] = useState<Decision[] | null>(null)
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({})
@@ -33,7 +35,7 @@ export function ChatFeed({
         setZoneNames(Object.fromEntries(zoneRows.map((z) => [z.id, z.name])))
       })
       .catch((err) => setError(err.message))
-  }, [zoneId])
+  }, [zoneId, refreshKey])
 
   return (
     <Card>

@@ -56,7 +56,15 @@ async def list_decisions(zone_id: str | None = Query(default=None), limit: int =
 
 @app.get("/api/decisions/latest")
 async def latest_decisions():
-    rows = supabase.table("decisions").select("*").order("created_at", desc=True).execute().data
+    # embeds the linked reading (temp/forecast) via Supabase's FK-based select —
+    # map popup (Day 3 Step 1) needs both without a second round trip
+    rows = (
+        supabase.table("decisions")
+        .select("*, reading:readings(temperature_f, forecast_12h, fetched_at)")
+        .order("created_at", desc=True)
+        .execute()
+        .data
+    )
     latest_by_zone: dict[str, dict] = {}
     for row in rows:
         latest_by_zone.setdefault(row["zone_id"], row)
