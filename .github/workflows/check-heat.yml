@@ -1,0 +1,16 @@
+name: Check Heat
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check-heat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/check-heat
+        run: |
+          curl -sS -X POST "https://swelter-iota.vercel.app/api/check-heat" \
+            -H "X-Check-Heat-Secret: ${{ secrets.CHECK_HEAT_SECRET }}" \
+            --fail-with-body
