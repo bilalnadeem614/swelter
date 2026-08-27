@@ -1,6 +1,7 @@
 import asyncio
 
 from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from fortyguard_client import FortyGuardClient
@@ -8,6 +9,15 @@ from gemini_reasoning import decide
 from supabase_client import supabase
 
 app = FastAPI(title="Swelter")
+
+# ponytail: allow all origins, this is a public read-only API with no auth cookies —
+# tighten to the deployed frontend origin only if that changes
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # leaves headroom under Vercel's 60s function limit for the Supabase writes bookending the wait
 CHECK_HEAT_BUDGET_S = 50.0
