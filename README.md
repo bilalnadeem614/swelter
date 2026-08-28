@@ -57,8 +57,8 @@ This provides small contractors enterprise-grade protection and audit trails at 
 5. Run `npm run dev` in `frontend/` (or `npx vercel dev` to also exercise `frontend/api/check-heat.ts`
    locally — plain `npm run dev` doesn't execute serverless functions, see decisions.md)
 
-## License
-MIT
+<!-- ## License
+MIT -->
 
 ## Contact
 Built by @bilalnadeem614 for FortyGuard Hackathon'26. Questions? Email bilalnadeem883@gmail.com.

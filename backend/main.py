@@ -23,6 +23,12 @@ app.add_middleware(
 # leaves headroom under Vercel's 60s function limit for the Supabase writes bookending the wait
 CHECK_HEAT_BUDGET_S = 50.0
 
+# ponytail: 2026-08-29 — live testing showed a single FortyGuard job alone taking 31-40s right
+# now; env_params running sequentially after get_current_temp_f/get_forecast_12h was pushing
+# every zone past CHECK_HEAT_BUDGET_S (0/3 processed, twice in a row on the live deploy).
+# Capped so it can't eat the whole budget — best-effort heat index, not a hard requirement.
+HEAT_INDEX_TIMEOUT_S = 12.0
+
 
 def _risk_level(temp_f: float, heat_index_f: float | None) -> str:
     # NWS heat-index categories (Caution/Extreme Caution/Danger/Extreme Danger), collapsed to
@@ -91,8 +97,15 @@ async def _process_zone(client: FortyGuardClient, zone: dict) -> bool:
         return False
 
     # must run after get_current_temp_f (env_params needs its temp value) — see
-    # get_heat_index_f docstring comment for the resulting latency tradeoff
-    heat_index_f = await client.get_heat_index_f(zone["lat"], zone["lng"], current_temp_f)
+    # get_heat_index_f docstring comment for the resulting latency tradeoff. Capped so a slow
+    # env_params job can't burn the whole zone's share of CHECK_HEAT_BUDGET_S — best-effort,
+    # falls back to raw temp_f in _risk_level if it doesn't finish in time.
+    try:
+        heat_index_f = await asyncio.wait_for(
+            client.get_heat_index_f(zone["lat"], zone["lng"], current_temp_f), timeout=HEAT_INDEX_TIMEOUT_S
+        )
+    except asyncio.TimeoutError:
+        heat_index_f = None
 
     reading = (
         supabase.table("readings")
