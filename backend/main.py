@@ -24,14 +24,16 @@ app.add_middleware(
 CHECK_HEAT_BUDGET_S = 50.0
 
 
-def _risk_level(temp_f: float) -> str:
-    # ponytail: simple threshold placeholder, not OSHA-calibrated — refine once real reasoning
-    # (Step 4) takes over risk assessment
-    if temp_f >= 115:
+def _risk_level(temp_f: float, heat_index_f: float | None) -> str:
+    # NWS heat-index categories (Caution/Extreme Caution/Danger/Extreme Danger), collapsed to
+    # this app's 4 levels. heat_index_f comes from FortyGuard's own env_params endpoint
+    # (official number, no hand-rolled formula) — falls back to raw temp_f if unavailable.
+    heat_index_f = heat_index_f if heat_index_f is not None else temp_f
+    if heat_index_f >= 125:
         return "extreme"
-    if temp_f >= 105:
+    if heat_index_f >= 103:
         return "high"
-    if temp_f >= 95:
+    if heat_index_f >= 90:
         return "moderate"
     return "low"
 
@@ -88,13 +90,17 @@ async def _process_zone(client: FortyGuardClient, zone: dict) -> bool:
     if current_temp_f is None:
         return False
 
+    # must run after get_current_temp_f (env_params needs its temp value) — see
+    # get_heat_index_f docstring comment for the resulting latency tradeoff
+    heat_index_f = await client.get_heat_index_f(zone["lat"], zone["lng"], current_temp_f)
+
     reading = (
         supabase.table("readings")
         .insert(
             {
                 "zone_id": zone["id"],
                 "temperature_f": current_temp_f,
-                "risk_level": _risk_level(current_temp_f),
+                "risk_level": _risk_level(current_temp_f, heat_index_f),
                 "forecast_12h": forecast_12h,
             }
         )

@@ -12,15 +12,17 @@ BASE_URL = "https://api.fortyguard.com/v1"
 ZONE_HALF_WIDTH_DEG = 0.02
 GRANULARITY = 60
 
-# ponytail: re-verified 2026-08-27 via a standalone lag-sweep test (see decisions.md)
-# — freshness lag is NOT ~3-4h as originally measured on 2026-08-26. Sweep tested
-# 1h/3h/8h/12h/24h/48h back from now: 1h through 12h all returned n_cells=0 with no
-# temperature_stats; 24h and 48h both returned full data. Actual boundary sits
-# somewhere between 12h and 24h — using 25h as a safety margin above the confirmed-
-# working 24h mark. FortyGuard support confirmed no separate near-real-time endpoint
-# exists; this lag is a structural property of the API, not a transient issue.
-# Re-verify if this build is revisited later — no guarantee this is stable day to day.
-FRESHNESS_LAG = timedelta(hours=25)
+# ponytail: re-verified AGAIN 2026-08-28 (see decisions.md) — the 25h value set 2026-08-27
+# (itself a fix for a prior wrong ~3-4h measurement) is already stale. Sweep tested
+# 25h/30h/36h/48h/72h back from now: 25h through 36h all returned n_cells=0 with no
+# temperature_stats; 48h and 72h both returned full data. Actual boundary sits somewhere
+# between 36h and 48h — using 48h as the confirmed-working mark, no safety margin added
+# since it's already drifted twice in two days. FortyGuard's own docs claim near-real-time
+# data works ("2019-01-01 through 12 hours past the current time") — that claim does not
+# match observed behavior; FortyGuard support separately confirmed no near-real-time
+# endpoint exists. Re-verify if this build is revisited later — this has moved twice
+# already and there's no guarantee it's stable day to day.
+FRESHNESS_LAG = timedelta(hours=48)
 
 POLL_INTERVAL_S = 2.0
 POLL_TIMEOUT_S = 45.0  # per job; two jobs per zone run concurrently within the 60s function budget
@@ -61,6 +63,10 @@ def _c_to_f(celsius: float) -> float:
     return celsius * 9 / 5 + 32
 
 
+def _f_to_c(fahrenheit: float) -> float:
+    return (fahrenheit - 32) * 5 / 9
+
+
 class FortyGuardClient:
     def __init__(self, api_key: str):
         self._client = httpx.AsyncClient(
@@ -72,11 +78,11 @@ class FortyGuardClient:
     async def aclose(self):
         await self._client.aclose()
 
-    async def _submit(self, payload: dict) -> Optional[str]:
+    async def _submit(self, payload: dict, endpoint: str = "/heatmap") -> Optional[str]:
         for attempt in range(MAX_RETRIES):
             async with _RATE_LIMIT:
                 try:
-                    resp = await self._client.post("/heatmap", json=payload)
+                    resp = await self._client.post(endpoint, json=payload)
                 except httpx.RequestError:
                     await asyncio.sleep(2**attempt)
                     continue
@@ -88,7 +94,7 @@ class FortyGuardClient:
             return resp.json().get("data", {}).get("activity_id")
         return None
 
-    async def _poll(self, activity_id: str) -> Optional[HeatmapResult]:
+    async def _poll(self, activity_id: str) -> Optional[dict]:
         deadline = asyncio.get_event_loop().time() + POLL_TIMEOUT_S
         while asyncio.get_event_loop().time() < deadline:
             async with _RATE_LIMIT:
@@ -105,14 +111,14 @@ class FortyGuardClient:
             data = resp.json().get("data", {})
             status = (data.get("status") or "").lower()
             if status in ("completed", "succeeded"):
-                return HeatmapResult.model_validate(data.get("result") or {})
+                return data.get("result") or {}
             if status == "failed":
                 return None
             await asyncio.sleep(POLL_INTERVAL_S)
         return None
 
-    async def _run_job(self, payload: dict) -> Optional[HeatmapResult]:
-        activity_id = await self._submit(payload)
+    async def _run_job(self, payload: dict, endpoint: str = "/heatmap") -> Optional[dict]:
+        activity_id = await self._submit(payload, endpoint)
         if not activity_id:
             return None
         return await self._poll(activity_id)
@@ -129,11 +135,38 @@ class FortyGuardClient:
             },
             "granularity": GRANULARITY,
         }
-        result = await self._run_job(payload)
-        if not result or not result.stats_data:
+        result = HeatmapResult.model_validate(await self._run_job(payload) or {})
+        if not result.stats_data:
             return None
         mean_c = (result.stats_data.get("temperature_stats") or {}).get("mean")
         return _c_to_f(mean_c) if mean_c is not None else None
+
+    async def get_heat_index_f(self, lat: float, lng: float, temp_f: float) -> Optional[float]:
+        # FortyGuard's own /v1/env_params computes heat index server-side (official number,
+        # confirmed via live docs 2026-08-28) — no third-party call or hand-rolled formula
+        # needed. Per docs, the date_time here "should match the date/time of the heatmap
+        # you generated for this location", so this must run AFTER get_current_temp_f (needs
+        # its temp value too), not concurrently with it — adds sequential latency on top of
+        # the already-tight CHECK_HEAT_BUDGET_S, accepted per 2026-08-28 decision.
+        reference = (datetime.now(timezone.utc) - FRESHNESS_LAG).replace(minute=0, second=0, microsecond=0)
+        payload = {
+            "latitude": lat,
+            "longitude": lng,
+            "temperature": _f_to_c(temp_f),
+            "date_time": {
+                "start_date": reference.strftime("%Y-%m-%d"),
+                "start_time": reference.strftime("%H:%M"),
+                "filter_type": 1,
+            },
+            "analysis": ["heat_index_celsius"],
+        }
+        result = await self._run_job(payload, endpoint="/env_params")
+        locations = (result or {}).get("locations") or []
+        if not locations:
+            return None
+        values = (locations[0].get("parameters") or {}).get("heat_index_celsius") or []
+        hi_c = values[0] if values else None
+        return _c_to_f(hi_c) if hi_c is not None else None
 
     async def get_forecast_12h(self, lat: float, lng: float) -> Optional[dict]:
         # anchor the forecast window at the same freshness-lag-adjusted reference point used
@@ -156,4 +189,4 @@ class FortyGuardClient:
             "granularity": GRANULARITY,
         }
         result = await self._run_job(payload)
-        return result.stats_data if result else None
+        return result.get("stats_data") if result else None

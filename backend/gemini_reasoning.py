@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 
 import google.generativeai as genai
 
@@ -7,6 +8,8 @@ from config import settings
 from fortyguard_client import _c_to_f
 from schemas import Action
 from supabase_client import supabase
+
+logger = logging.getLogger(__name__)
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
 _model = genai.GenerativeModel("gemini-3.6-flash")
@@ -111,7 +114,8 @@ async def answer_question(question: str) -> str:
         )
         return response.text.strip()
     except Exception as exc:
-        return f"Sorry, I couldn't answer that right now ({exc})."
+        logger.warning("Gemini answer_question() failed: %s", exc)
+        return "Sorry, I couldn't answer that right now — try again in a moment."
 
 
 async def decide(zone_id: str, temperature_f: float, forecast_12h: dict | None) -> tuple[Action, str]:
@@ -137,4 +141,7 @@ async def decide(zone_id: str, temperature_f: float, forecast_12h: dict | None) 
     except Exception as exc:
         # ponytail: fail safe to "none" rather than block the write — a bad/slow Gemini call
         # shouldn't lose the reading. Revisit if silent under-alerting on failure is a concern.
-        return "none", f"fallback — gemini call failed: {exc}"
+        # Raw exception (quota IDs, doc links, retry delays) goes to server logs only —
+        # `reasoning` is rendered directly in the public chat feed, must stay clean.
+        logger.warning("Gemini decide() failed for zone %s: %s", zone_id, exc)
+        return "none", "No automated recommendation this cycle — the AI reasoning step was unavailable."
