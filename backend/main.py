@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from fortyguard_client import FortyGuardClient
 from gemini_reasoning import answer_question, decide
-from schemas import ChatQuestion
+from schemas import ChatQuestion, ConfirmDecisionResponse
 from supabase_client import supabase
 
 app = FastAPI(title="Swelter")
@@ -83,6 +84,27 @@ async def latest_decisions():
             reading = row.get("reading")
             latest_by_zone[row["zone_id"]]["previous_temperature_f"] = reading["temperature_f"] if reading else None
     return list(latest_by_zone.values())
+
+
+@app.patch("/api/decisions/{decision_id}/confirm")
+async def confirm_decision(decision_id: str) -> ConfirmDecisionResponse:
+    # Human audit annotation only — does not touch decide() or /api/check-heat, and this
+    # endpoint has no auth (same open trust model as the rest of the API surface today).
+    existing = supabase.table("decisions").select("id, field_confirmed_at").eq("id", decision_id).execute().data
+    if not existing:
+        raise HTTPException(status_code=404, detail="decision not found")
+    if existing[0]["field_confirmed_at"]:
+        return existing[0]
+
+    confirmed_at = datetime.now(timezone.utc).isoformat()
+    row = (
+        supabase.table("decisions")
+        .update({"field_confirmed_at": confirmed_at})
+        .eq("id", decision_id)
+        .execute()
+        .data
+    )
+    return row[0]
 
 
 @app.post("/api/chat")
