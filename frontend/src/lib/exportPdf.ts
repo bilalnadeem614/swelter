@@ -24,15 +24,24 @@ export function exportDecisionLogPdf(decisions: Decision[], zoneNames: Record<st
     29,
   )
 
+  const actionable = decisions.filter((d) => d.action !== "none")
+  const confirmed = actionable.filter((d) => d.field_confirmed_at)
+  doc.text(
+    `${decisions.length} decisions logged · ${actionable.length} required action · ${confirmed.length} field-confirmed`,
+    14,
+    34,
+  )
+
   autoTable(doc, {
-    startY: 34,
-    head: [["Timestamp", "Zone", "Temperature", "Action", "Reasoning"]],
+    startY: 39,
+    head: [["Timestamp", "Zone", "Temperature", "Action", "Reasoning", "Field Confirmed"]],
     body: decisions.map((d) => [
       new Date(d.created_at).toLocaleString(),
       zoneNames[d.zone_id] ?? d.zone_id,
       temperatureLabel(d),
       d.action,
       d.reasoning,
+      d.field_confirmed_at ? new Date(d.field_confirmed_at).toLocaleString() : "—",
     ]),
     styles: { fontSize: 8, cellWidth: "wrap", overflow: "linebreak" },
     columnStyles: {
@@ -40,7 +49,8 @@ export function exportDecisionLogPdf(decisions: Decision[], zoneNames: Record<st
       1: { cellWidth: 24 },
       2: { cellWidth: 26 },
       3: { cellWidth: 20 },
-      4: { cellWidth: "auto" },
+      4: { cellWidth: 40 },
+      5: { cellWidth: "auto" },
     },
     didDrawPage: () => {
       const pageCount = doc.getNumberOfPages()

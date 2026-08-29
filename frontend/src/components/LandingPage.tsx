@@ -65,7 +65,9 @@ export function LandingPage({ onViewDashboard }: { onViewDashboard: () => void }
           </h1>
           <p className="text-sm text-muted-foreground sm:text-base">
             Automating heat risk audits for safety managers and owner-operators at small to
-            mid-sized construction and landscaping contractors.
+            mid-sized construction and landscaping contractors. OSHA can issue heat-related
+            citations today under the General Duty Clause, even without a finalized federal heat
+            standard — enforcement was reinforced via a revised National Emphasis Program in 2026.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button onClick={onViewDashboard} className="gap-1.5">
@@ -74,7 +76,7 @@ export function LandingPage({ onViewDashboard }: { onViewDashboard: () => void }
             </Button>
             <Button
               variant="outline"
-              onClick={() => window.open('https://github.com', '_blank', 'noopener')}
+              onClick={() => window.open('https://github.com/bilalnadeem614/swelter', '_blank', 'noopener')}
             >
               Documentation
             </Button>
