@@ -4,11 +4,12 @@ import { ZoneMap } from '@/components/ZoneMap'
 import { ChatFeed } from '@/components/ChatFeed'
 import { NavBar } from '@/components/NavBar'
 import { LandingPage } from '@/components/LandingPage'
+import { DocsPage } from '@/components/DocsPage'
 import { Button } from '@/components/ui/button'
 import { triggerCheckNow } from '@/lib/api'
 
 function App() {
-  const [view, setView] = useState<'landing' | 'dashboard'>('landing')
+  const [view, setView] = useState<'landing' | 'dashboard' | 'docs'>('landing')
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window === 'undefined') return 'dark'
     return (localStorage.getItem('swelter-theme') as 'light' | 'dark') ?? 'dark'
@@ -40,7 +41,9 @@ function App() {
     <>
       <NavBar view={view} onNavigate={setView} theme={theme} onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />
       {view === 'landing' ? (
-        <LandingPage onViewDashboard={() => setView('dashboard')} />
+        <LandingPage onViewDashboard={() => setView('dashboard')} onViewDocs={() => setView('docs')} />
+      ) : view === 'docs' ? (
+        <DocsPage onViewDashboard={() => setView('dashboard')} />
       ) : (
         <main className="mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-6">
           <section className="flex flex-col gap-3 py-4 sm:py-6">

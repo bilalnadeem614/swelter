@@ -43,7 +43,13 @@ const COMPARISON = [
   },
 ]
 
-export function LandingPage({ onViewDashboard }: { onViewDashboard: () => void }) {
+export function LandingPage({
+  onViewDashboard,
+  onViewDocs,
+}: {
+  onViewDashboard: () => void
+  onViewDocs: () => void
+}) {
   return (
     <div className="flex flex-col gap-16 px-4 pb-16 sm:px-6">
       <section
@@ -76,7 +82,7 @@ export function LandingPage({ onViewDashboard }: { onViewDashboard: () => void }
             </Button>
             <Button
               variant="outline"
-              onClick={() => window.open('https://github.com/bilalnadeem614/swelter', '_blank', 'noopener')}
+              onClick={onViewDocs}
             >
               Documentation
             </Button>
@@ -144,7 +150,7 @@ export function LandingPage({ onViewDashboard }: { onViewDashboard: () => void }
       <footer className="mx-auto flex w-full max-w-4xl flex-col gap-4 border-t border-border pt-6 text-sm sm:flex-row sm:items-center sm:justify-between">
         <span className="font-heading font-bold">SWELTER</span>
         <nav className="flex flex-wrap gap-4 text-muted-foreground">
-          <a href="#" className="underline-offset-4 hover:underline">Documentation</a>
+          <button onClick={onViewDocs} className="underline-offset-4 hover:underline">Documentation</button>
           <a href="#" className="underline-offset-4 hover:underline">Safety Protocols</a>
           <a href="#" className="underline-offset-4 hover:underline">System Status</a>
           <a href="#" className="underline-offset-4 hover:underline">Privacy</a>
