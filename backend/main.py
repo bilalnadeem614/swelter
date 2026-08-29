@@ -76,7 +76,12 @@ async def latest_decisions():
     )
     latest_by_zone: dict[str, dict] = {}
     for row in rows:
-        latest_by_zone.setdefault(row["zone_id"], row)
+        if row["zone_id"] not in latest_by_zone:
+            latest_by_zone[row["zone_id"]] = row
+        elif "previous_temperature_f" not in latest_by_zone[row["zone_id"]]:
+            # second row seen per zone (rows are already sorted newest-first) — trend indicator
+            reading = row.get("reading")
+            latest_by_zone[row["zone_id"]]["previous_temperature_f"] = reading["temperature_f"] if reading else None
     return list(latest_by_zone.values())
 
 

@@ -86,6 +86,9 @@ export function ChatFeed({
             </Button>
           </div>
         </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Considered: current reading + 12h forecast + last 5 decisions for this zone
+        </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {error && (
