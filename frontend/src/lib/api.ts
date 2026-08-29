@@ -21,6 +21,27 @@ export type Reading = {
 
 const cToF = (c: number) => (c * 9) / 5 + 32
 
+// ponytail: mirrors backend/fortyguard_client.py FRESHNESS_LAG (timedelta(hours=48)) — no
+// endpoint exposes this value, so it's hardcoded here; keep in sync if the backend constant drifts
+export const FRESHNESS_LAG_HOURS = 48
+
+export function tempTrend(current?: number | null, previous?: number | null): "up" | "down" | "flat" {
+  if (current == null || previous == null) return "flat"
+  const delta = current - previous
+  if (Math.abs(delta) < 0.5) return "flat"
+  return delta > 0 ? "up" : "down"
+}
+
+export function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const diffMin = Math.round(diffMs / 60000)
+  if (diffMin < 1) return "just now"
+  if (diffMin < 60) return `${diffMin} min ago`
+  const diffHr = Math.round(diffMin / 60)
+  if (diffHr < 24) return `${diffHr}h ago`
+  return `${Math.round(diffHr / 24)}d ago`
+}
+
 export function forecastRangeF(forecast_12h: Reading["forecast_12h"]): string | null {
   const stats = forecast_12h?.temperature_stats
   if (!stats || stats.minimum == null || stats.maximum == null) return null
@@ -36,6 +57,8 @@ export type Decision = {
   notified: boolean
   created_at: string
   reading?: Reading | null
+  // only populated by /api/decisions/latest, for the trend indicator
+  previous_temperature_f?: number | null
 }
 
 async function get<T>(path: string): Promise<T> {

@@ -5,7 +5,19 @@ import "leaflet/dist/leaflet.css"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { fetchZones, fetchLatestDecisions, forecastRangeF, type Zone, type Decision, type Action } from "@/lib/api"
+import {
+  fetchZones,
+  fetchLatestDecisions,
+  forecastRangeF,
+  tempTrend,
+  formatRelativeTime,
+  FRESHNESS_LAG_HOURS,
+  type Zone,
+  type Decision,
+  type Action,
+} from "@/lib/api"
+
+const TREND_ARROW = { up: "↑", down: "↓", flat: "→" }
 
 const ACTION_COLOR: Record<Action, string> = {
   none: "#22c55e",
@@ -62,10 +74,18 @@ function ZoneMarkers({
                   </Badge>
                 </div>
                 {decision?.reading ? (
-                  <p className="text-sm">
-                    {Math.round(decision.reading.temperature_f)}°F latest reading
-                    {forecast ? ` · ${forecast} next 12h` : ""}
-                  </p>
+                  <>
+                    <p className="text-sm">
+                      {Math.round(decision.reading.temperature_f)}°F latest reading{" "}
+                      <span title="vs. previous reading for this zone">
+                        {TREND_ARROW[tempTrend(decision.reading.temperature_f, decision.previous_temperature_f)]}
+                      </span>
+                      {forecast ? ` · ${forecast} next 12h` : ""}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Latest available reading · ~{FRESHNESS_LAG_HOURS}h FortyGuard ingestion lag
+                    </p>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground">No reading yet.</p>
                 )}
@@ -98,6 +118,10 @@ export function ZoneMap({
   const [zones, setZones] = useState<Zone[] | null>(null)
   const [latestByZone, setLatestByZone] = useState<Record<string, Decision>>({})
   const [error, setError] = useState<string | null>(null)
+  const lastChecked = Object.values(latestByZone)
+    .map((d) => d.created_at)
+    .sort()
+    .at(-1)
 
   useEffect(() => {
     Promise.all([fetchZones(), fetchLatestDecisions()])
@@ -115,7 +139,14 @@ export function ZoneMap({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Watch Zones</CardTitle>
+        <CardTitle className="flex items-center justify-between gap-2">
+          <span>Watch Zones</span>
+          {lastChecked && (
+            <span className="text-xs font-normal text-muted-foreground">
+              Last checked: {formatRelativeTime(lastChecked)}
+            </span>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {error && (
