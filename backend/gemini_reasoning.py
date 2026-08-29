@@ -2,7 +2,8 @@ import asyncio
 import json
 import logging
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from config import settings
 from fortyguard_client import _c_to_f
@@ -11,8 +12,8 @@ from supabase_client import supabase
 
 logger = logging.getLogger(__name__)
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
-_model = genai.GenerativeModel("gemini-3.6-flash")
+_client = genai.Client(api_key=settings.GEMINI_API_KEY)
+_MODEL_NAME = "gemini-3.6-flash"
 
 ALLOWED_ACTIONS = {"none", "alert", "reschedule", "escalate"}
 GEMINI_TIMEOUT_S = 8.0
@@ -109,7 +110,7 @@ async def answer_question(question: str) -> str:
     prompt = CHAT_PROMPT_TEMPLATE.format(zones_context=_zones_context(), question=question)
     try:
         response = await asyncio.wait_for(
-            asyncio.to_thread(_model.generate_content, prompt),
+            _client.aio.models.generate_content(model=_MODEL_NAME, contents=prompt),
             timeout=GEMINI_TIMEOUT_S,
         )
         return response.text.strip()
@@ -126,10 +127,10 @@ async def decide(zone_id: str, temperature_f: float, forecast_12h: dict | None) 
     )
     try:
         response = await asyncio.wait_for(
-            asyncio.to_thread(
-                _model.generate_content,
-                prompt,
-                generation_config=genai.GenerationConfig(response_mime_type="application/json"),
+            _client.aio.models.generate_content(
+                model=_MODEL_NAME,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json"),
             ),
             timeout=GEMINI_TIMEOUT_S,
         )
