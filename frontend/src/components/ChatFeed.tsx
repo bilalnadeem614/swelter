@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { askAgent, fetchDecisions, fetchZones, type Decision, type Action, type Zone } from "@/lib/api"
+import { askAgent, confirmDecision, fetchDecisions, fetchZones, type Decision, type Action, type Zone } from "@/lib/api"
 import { exportDecisionLogPdf } from "@/lib/exportPdf"
 
 type QaEntry = { id: number; question: string; answer?: string; pending?: boolean; error?: string }
@@ -32,6 +32,22 @@ export function ChatFeed({
   const [error, setError] = useState<string | null>(null)
   const [qaLog, setQaLog] = useState<QaEntry[]>([])
   const [question, setQuestion] = useState("")
+
+  async function handleConfirm(decisionId: string) {
+    const prev = decisions
+    const optimisticIso = new Date().toISOString()
+    setDecisions((rows) =>
+      rows?.map((d) => (d.id === decisionId ? { ...d, field_confirmed_at: optimisticIso } : d)) ?? rows
+    )
+    try {
+      const { field_confirmed_at } = await confirmDecision(decisionId)
+      setDecisions((rows) =>
+        rows?.map((d) => (d.id === decisionId ? { ...d, field_confirmed_at } : d)) ?? rows
+      )
+    } catch {
+      setDecisions(prev)
+    }
+  }
 
   async function handleAsk(e: FormEvent) {
     e.preventDefault()
@@ -126,9 +142,28 @@ export function ChatFeed({
                   </span>
                 </div>
                 <p className="text-sm">{d.reasoning}</p>
-                <Badge variant={style.badge} className="w-fit capitalize">
-                  {d.action}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={style.badge} className="w-fit capitalize">
+                    {d.action}
+                  </Badge>
+                  {d.action !== "none" && (
+                    <button
+                      onClick={() => !d.field_confirmed_at && handleConfirm(d.id)}
+                      disabled={!!d.field_confirmed_at}
+                      className={cn(
+                        "text-xs rounded border px-1.5 py-0.5",
+                        d.field_confirmed_at
+                          ? "border-green-600 text-green-700 dark:text-green-500 cursor-default"
+                          : "border-muted-foreground/40 text-muted-foreground hover:border-foreground hover:text-foreground"
+                      )}
+                      title="Human record that this action was physically carried out — separate from the AI's own decision"
+                    >
+                      {d.field_confirmed_at
+                        ? `✓ Field confirmed at ${new Date(d.field_confirmed_at).toLocaleString()}`
+                        : "☐ Field confirmed"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )

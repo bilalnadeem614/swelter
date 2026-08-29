@@ -34,6 +34,12 @@ class Decision(BaseModel):
     reasoning: str
     notified: bool
     created_at: datetime
+    field_confirmed_at: Optional[datetime] = None
+
+
+class ConfirmDecisionResponse(BaseModel):
+    id: UUID
+    field_confirmed_at: datetime
 
 
 class ChatQuestion(BaseModel):

@@ -59,6 +59,8 @@ export type Decision = {
   reading?: Reading | null
   // only populated by /api/decisions/latest, for the trend indicator
   previous_temperature_f?: number | null
+  // human audit annotation — set by confirmDecision, never by the AI's own decide() loop
+  field_confirmed_at?: string | null
 }
 
 async function get<T>(path: string): Promise<T> {
@@ -77,6 +79,13 @@ export const fetchLatestDecisions = () => get<Decision[]>("/api/decisions/latest
 export async function triggerCheckNow(): Promise<{ processed: string[]; skipped: string[] }> {
   const res = await fetch("/api/check-heat", { method: "POST" })
   if (!res.ok) throw new Error(`check-heat failed: ${res.status}`)
+  return res.json()
+}
+
+// Human field-confirmation record, not an approval step — public endpoint, hits the backend directly
+export async function confirmDecision(id: string): Promise<{ id: string; field_confirmed_at: string }> {
+  const res = await fetch(`${BASE_URL}/api/decisions/${id}/confirm`, { method: "PATCH" })
+  if (!res.ok) throw new Error(`confirm failed: ${res.status}`)
   return res.json()
 }
 
