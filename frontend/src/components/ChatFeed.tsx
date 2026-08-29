@@ -11,6 +11,12 @@ import { exportDecisionLogPdf } from "@/lib/exportPdf"
 
 type QaEntry = { id: number; question: string; answer?: string; pending?: boolean; error?: string }
 
+const SUGGESTED_QUESTIONS = [
+  "What's my riskiest zone right now?",
+  "Any zones needing action today?",
+  "Summarize the last hour of activity",
+]
+
 const ACTION_STYLE: Record<Action, { badge: "secondary" | "outline" | "destructive"; border: string }> = {
   none: { badge: "outline", border: "border-l-transparent" },
   alert: { badge: "secondary", border: "border-l-yellow-500" },
@@ -49,9 +55,9 @@ export function ChatFeed({
     }
   }
 
-  async function handleAsk(e: FormEvent) {
-    e.preventDefault()
-    const q = question.trim()
+  async function handleAsk(e?: FormEvent, override?: string) {
+    e?.preventDefault()
+    const q = (override ?? question).trim()
     if (!q) return
     setQuestion("")
     const id = Date.now()
@@ -195,7 +201,21 @@ export function ChatFeed({
           </div>
         ))}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex flex-col items-stretch gap-2">
+        {qaLog.length === 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {SUGGESTED_QUESTIONS.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => handleAsk(undefined, q)}
+                className="rounded-full border border-input px-2.5 py-1 text-xs text-muted-foreground hover:border-foreground hover:text-foreground"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
         <form onSubmit={handleAsk} className="flex w-full gap-2">
           <input
             value={question}

@@ -33,6 +33,20 @@ const ACTION_BADGE: Record<Action, "secondary" | "outline" | "destructive"> = {
   escalate: "destructive",
 }
 
+const ACTION_SEVERITY: Record<Action, number> = {
+  escalate: 3,
+  reschedule: 2,
+  alert: 1,
+  none: 0,
+}
+
+const SUMMARY_LABEL: Record<Action, string> = {
+  none: "Nominal",
+  alert: "Alert",
+  reschedule: "Reschedule",
+  escalate: "Escalate",
+}
+
 const ZOOM_ON_CLICK = 18
 
 function ZoneMarkers({
@@ -136,6 +150,22 @@ export function ZoneMap({
     ? zones.map((z) => [z.lat, z.lng] as [number, number])
     : undefined
 
+  const sortedZones = zones
+    ? [...zones].sort((a, b) => {
+        const severityA = latestByZone[a.id] ? ACTION_SEVERITY[latestByZone[a.id].action] : -1
+        const severityB = latestByZone[b.id] ? ACTION_SEVERITY[latestByZone[b.id].action] : -1
+        return severityB - severityA
+      })
+    : undefined
+
+  const statusCounts: Record<Action, number> = { none: 0, alert: 0, reschedule: 0, escalate: 0 }
+  if (zones) {
+    for (const zone of zones) {
+      const action = latestByZone[zone.id]?.action ?? "none"
+      statusCounts[action] += 1
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -156,7 +186,18 @@ export function ZoneMap({
         {zones?.length === 0 && (
           <p className="text-sm text-muted-foreground">No active watch zones configured.</p>
         )}
-        {zones && bounds && (
+        {zones && zones.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            {(Object.keys(statusCounts) as Action[])
+              .filter((action) => statusCounts[action] > 0)
+              .map((action) => (
+                <Badge key={action} variant={ACTION_BADGE[action]}>
+                  {statusCounts[action]} {SUMMARY_LABEL[action]}
+                </Badge>
+              ))}
+          </div>
+        )}
+        {zones && bounds && sortedZones && (
           <MapContainer
             bounds={bounds}
             boundsOptions={{ padding: [40, 40] }}
@@ -176,7 +217,7 @@ export function ZoneMap({
                 />
               </LayersControl.BaseLayer>
             </LayersControl>
-            <ZoneMarkers zones={zones} latestByZone={latestByZone} onZoneClick={onZoneClick} />
+            <ZoneMarkers zones={sortedZones} latestByZone={latestByZone} onZoneClick={onZoneClick} />
           </MapContainer>
         )}
       </CardContent>
