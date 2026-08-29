@@ -2,7 +2,7 @@ import { Bell, Settings, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type View = 'landing' | 'dashboard'
+type View = 'landing' | 'dashboard' | 'docs'
 type Theme = 'light' | 'dark'
 
 export function NavBar({
@@ -37,6 +37,15 @@ export function NavBar({
           )}
         >
           Dashboard
+        </button>
+        <button
+          onClick={() => onNavigate('docs')}
+          className={cn(
+            'underline-offset-4',
+            view === 'docs' ? 'text-foreground underline' : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Documentation
         </button>
       </nav>
       <div className="ml-auto flex items-center gap-2">

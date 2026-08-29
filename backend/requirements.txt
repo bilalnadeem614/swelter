@@ -7,6 +7,6 @@ supabase==2.7.4
 # supabase==2.31.0
 # supabase-auth==2.31.0
 # supabase-functions==2.31.0
-google-generativeai==0.8.2
+google-genai==1.0.0
 python-dotenv==1.0.1
 pydantic-settings>=2.5.2,<3.0.0
