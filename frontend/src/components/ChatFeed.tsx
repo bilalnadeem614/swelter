@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react"
-import { Bot, User } from "lucide-react"
+import { Bot, Download, User } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { askAgent, fetchDecisions, fetchZones, type Decision, type Action, type Zone } from "@/lib/api"
+import { exportDecisionLogPdf } from "@/lib/exportPdf"
 
 type QaEntry = { id: number; question: string; answer?: string; pending?: boolean; error?: string }
 
@@ -61,16 +62,29 @@ export function ChatFeed({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+        <CardTitle className="flex items-center justify-between gap-2">
           <span>Agent Activity</span>
-          {zoneId && (
-            <button
-              onClick={onClearZone}
-              className="text-xs font-normal text-muted-foreground hover:text-foreground hover:underline"
+          <div className="flex items-center gap-3">
+            {zoneId && (
+              <button
+                onClick={onClearZone}
+                className="text-xs font-normal text-muted-foreground hover:text-foreground hover:underline"
+              >
+                {zoneNames[zoneId] ?? "Filtered"} · Clear
+              </button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={!decisions || decisions.length === 0}
+              title={!decisions || decisions.length === 0 ? "No decisions to export" : undefined}
+              onClick={() => decisions && exportDecisionLogPdf(decisions, zoneNames)}
             >
-              {zoneNames[zoneId] ?? "Filtered"} · Clear
-            </button>
-          )}
+              <Download className="size-3.5" />
+              Download PDF
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
