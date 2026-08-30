@@ -7,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from fortyguard_client import FortyGuardClient
 from gemini_reasoning import answer_question, decide
-from schemas import ChatQuestion, ConfirmDecisionResponse
+from push_notify import notify_all
+from schemas import ChatQuestion, ConfirmDecisionResponse, PushSubscription
 from supabase_client import supabase
 
 app = FastAPI(title="Swelter")
@@ -29,6 +30,10 @@ CHECK_HEAT_BUDGET_S = 50.0
 # every zone past CHECK_HEAT_BUDGET_S (0/3 processed, twice in a row on the live deploy).
 # Capped so it can't eat the whole budget — best-effort heat index, not a hard requirement.
 HEAT_INDEX_TIMEOUT_S = 12.0
+
+# push fan-out must never be why a zone gets reported "skipped" when its reading/decision
+# were already written — bounded and swallowed, same pattern as HEAT_INDEX_TIMEOUT_S
+PUSH_TIMEOUT_S = 8.0
 
 
 def _risk_level(temp_f: float, heat_index_f: float | None) -> str:
@@ -107,6 +112,22 @@ async def confirm_decision(decision_id: str) -> ConfirmDecisionResponse:
     return row[0]
 
 
+@app.get("/api/push/public-key")
+async def push_public_key():
+    return {"publicKey": settings.VAPID_PUBLIC_KEY}
+
+
+@app.post("/api/push/subscribe")
+async def push_subscribe(body: PushSubscription):
+    # public, no auth — same open trust model as the rest of the API surface. Upsert on
+    # endpoint so re-subscribing (e.g. after clearing site data) doesn't duplicate rows.
+    supabase.table("push_subscriptions").upsert(
+        {"endpoint": body.endpoint, "p256dh": body.keys.p256dh, "auth": body.keys.auth},
+        on_conflict="endpoint",
+    ).execute()
+    return {"ok": True}
+
+
 @app.post("/api/chat")
 async def chat(body: ChatQuestion):
     # Stretch A (pulled forward from Day 4): read-only, grounded in live zone/decision data —
@@ -161,6 +182,16 @@ async def _process_zone(client: FortyGuardClient, zone: dict) -> bool:
             "notified": action != "none",
         }
     ).execute()
+
+    if action != "none":
+        # pywebpush is a blocking (requests-based) call — run off the event loop so one slow
+        # or unreachable push endpoint can't stall the other zones' check-heat cycle. Bounded
+        # and best-effort: the reading/decision above are already written, so a slow or failed
+        # push must never flip this zone to "skipped" in the response.
+        try:
+            await asyncio.wait_for(asyncio.to_thread(notify_all, zone["name"], action, reasoning), timeout=PUSH_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            pass
 
     return True
 
