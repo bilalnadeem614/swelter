@@ -9,4 +9,5 @@ supabase==2.7.4
 # supabase-functions==2.31.0
 google-genai==1.0.0
 python-dotenv==1.0.1
+pywebpush==2.5.0
 pydantic-settings>=2.5.2,<3.0.0
