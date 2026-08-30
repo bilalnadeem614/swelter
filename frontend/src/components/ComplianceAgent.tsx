@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { askAgent } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { Sparkles } from "lucide-react"
 
 type QaEntry = { id: number; question: string; answer?: string; pending?: boolean; error?: string }
 
@@ -38,7 +39,12 @@ export function ComplianceAgent({ zoneId, className }: { zoneId?: string; classN
   return (
     <Card className={cn("flex h-full flex-col", className)}>
       <CardHeader>
-        <CardTitle>AI Compliance Agent</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <span className="flex size-7 items-center justify-center rounded-full bg-accent/15 text-accent">
+            <Sparkles className="size-3.5" />
+          </span>
+          AI Compliance Agent
+        </CardTitle>
         <p className="text-xs text-muted-foreground">Grounded in live zone readings + decision history</p>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3 overflow-y-auto">

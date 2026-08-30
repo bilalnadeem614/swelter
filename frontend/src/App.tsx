@@ -53,14 +53,20 @@ function App() {
             <ZoneDetail zoneId={selectedZoneId} onBack={() => setSelectedZoneId(undefined)} refreshKey={refreshKey} />
           ) : (
             <>
-              <section className="flex flex-wrap items-center justify-between gap-3 py-2">
-                <div>
-                  <h1 className="font-heading text-2xl font-medium sm:text-3xl">Infrastructure Command</h1>
+              <section className="relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-border/60 bg-card px-5 py-5 shadow-sm sm:px-6">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -top-24 -right-24 size-64 rounded-full bg-accent/20 blur-3xl"
+                />
+                <div className="relative">
+                  <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
+                    Infrastructure Command
+                  </h1>
                   <p className="text-sm text-muted-foreground">
                     Autonomous AI heat risk monitoring — active watch zones below.
                   </p>
                 </div>
-                <div>
+                <div className="relative">
                   <Button onClick={handleCheckNow} disabled={checking} className="gap-1.5">
                     <RefreshCw className={checking ? 'animate-spin' : ''} />
                     {checking ? 'Checking… (can take up to a minute)' : 'Check Now'}

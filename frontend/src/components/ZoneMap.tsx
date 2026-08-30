@@ -206,7 +206,11 @@ export function ZoneMap({
           <MapContainer
             bounds={bounds}
             boundsOptions={{ padding: [40, 40] }}
-            style={{ height: 400, width: "100%", borderRadius: "var(--radius-lg)" }}
+            // isolate: Leaflet's internal panes/controls use z-index up to 1000 with no
+            // stacking context of their own — without this they render above the sticky
+            // NavBar and modals elsewhere on the page regardless of DOM order.
+            className="isolate"
+            style={{ height: 400, width: "100%", borderRadius: "var(--radius-lg)", position: "relative", zIndex: 0 }}
           >
             <LayersControl position="topright">
               <LayersControl.BaseLayer checked name="Street">

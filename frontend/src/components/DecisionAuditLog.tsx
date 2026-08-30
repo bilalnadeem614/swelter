@@ -6,12 +6,20 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DecisionDetailModal } from "@/components/DecisionDetailModal"
 import { fetchZones, fetchDecisions, confirmDecision, type Decision, type Action, type Zone } from "@/lib/api"
 import { exportDecisionLogPdf } from "@/lib/exportPdf"
+import { ClipboardList, CheckCircle2, AlertTriangle, Clock, Flame, type LucideIcon } from "lucide-react"
 
 const ACTION_BADGE: Record<Action, "secondary" | "outline" | "destructive"> = {
   none: "outline",
   alert: "secondary",
   reschedule: "secondary",
   escalate: "destructive",
+}
+
+const ACTION_ICON: Record<Action, LucideIcon> = {
+  none: CheckCircle2,
+  alert: AlertTriangle,
+  reschedule: Clock,
+  escalate: Flame,
 }
 
 const PAGE_SIZE = 10
@@ -51,7 +59,10 @@ export function DecisionAuditLog({ zoneId, refreshKey }: { zoneId?: string; refr
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between gap-2">
-          <span>Decision Audit Log</span>
+          <span className="flex items-center gap-2">
+            <ClipboardList className="size-4 text-muted-foreground" />
+            Decision Audit Log
+          </span>
           <Button
             variant="outline"
             size="sm"
@@ -68,10 +79,10 @@ export function DecisionAuditLog({ zoneId, refreshKey }: { zoneId?: string; refr
         {!error && !decisions && <Skeleton className="h-64 w-full rounded-lg" />}
         {decisions?.length === 0 && <p className="text-sm text-muted-foreground">No decisions logged yet.</p>}
         {decisions && decisions.length > 0 && (
-          <div className="max-h-[420px] overflow-y-auto rounded-lg border">
+          <div className="max-h-[420px] overflow-y-auto rounded-lg border border-border/60">
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 bg-card">
-                <tr className="border-b text-xs text-muted-foreground">
+                <tr className="border-b border-border/60 text-xs text-muted-foreground">
                   <th className="py-2 pr-4 pl-3 font-medium">Timestamp (local)</th>
                   {!zoneId && <th className="py-2 pr-4 font-medium">Zone</th>}
                   <th className="py-2 pr-4 font-medium">Recommended action by agent</th>
@@ -79,19 +90,23 @@ export function DecisionAuditLog({ zoneId, refreshKey }: { zoneId?: string; refr
                   <th className="py-2 pr-4 font-medium">Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border/40">
                 {decisions.slice(0, visible).map((d) => (
                   <tr
                     key={d.id}
                     onClick={() => setOpenId(d.id)}
-                    className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/40"
+                    className="cursor-pointer transition-colors hover:bg-muted/40"
                   >
                     <td className="py-2 pr-4 pl-3 whitespace-nowrap text-muted-foreground">
                       {new Date(d.created_at).toLocaleString()}
                     </td>
                     {!zoneId && <td className="py-2 pr-4 whitespace-nowrap">{zoneNames[d.zone_id] ?? "Unknown"}</td>}
                     <td className="py-2 pr-4">
-                      <Badge variant={ACTION_BADGE[d.action]} className="capitalize">
+                      <Badge variant={ACTION_BADGE[d.action]} className="gap-1 capitalize">
+                        {(() => {
+                          const Icon = ACTION_ICON[d.action]
+                          return <Icon className="size-3" />
+                        })()}
                         {d.action}
                       </Badge>
                     </td>
