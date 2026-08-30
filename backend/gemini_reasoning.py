@@ -12,11 +12,38 @@ from supabase_client import supabase
 
 logger = logging.getLogger(__name__)
 
-_client = genai.Client(api_key=settings.GEMINI_API_KEY)
+# Multiple keys = automatic, invisible-to-the-user failover: if one key is out of free-tier
+# quota (or otherwise erroring), the next one is tried before falling back to the safe
+# "none"/"couldn't answer" responses below. Order = priority; GEMINI_API_KEY tried first.
+# GEMINI_API_KEY_2/_3 are optional — omit them to run with just one key, unchanged from before.
+_API_KEYS = [k for k in (settings.GEMINI_API_KEY, settings.GEMINI_API_KEY_2, settings.GEMINI_API_KEY_3) if k]
+_clients = [genai.Client(api_key=k) for k in _API_KEYS]
 _MODEL_NAME = "gemini-3.6-flash"
 
 ALLOWED_ACTIONS = {"none", "alert", "reschedule", "escalate"}
-GEMINI_TIMEOUT_S = 8.0
+# per-attempt timeout — with up to 3 keys rotating (see _generate_content), worst case is
+# 3x this. Cut 8 -> 6 on 2026-08-30 alongside main.py's HEAT_INDEX_TIMEOUT_S/PUSH_TIMEOUT_S
+# trims: FortyGuard's own latency (measured ~42s for one zone, one job) already eats most of
+# check-heat's per-zone budget on this Hobby-plan 60s ceiling, so every other timeout in the
+# pipeline had to shrink to leave it any room at all.
+GEMINI_TIMEOUT_S = 6.0
+
+
+async def _generate_content(**kwargs):
+    """Tries each configured Gemini key in order, per-attempt bounded by GEMINI_TIMEOUT_S.
+    Raises the last exception if every key fails — callers already catch that and fall back
+    to a safe response, so this only ever makes things more resilient, never less."""
+    last_exc: Exception | None = None
+    for i, client in enumerate(_clients):
+        try:
+            return await asyncio.wait_for(
+                client.aio.models.generate_content(model=_MODEL_NAME, **kwargs), timeout=GEMINI_TIMEOUT_S
+            )
+        except Exception as exc:
+            last_exc = exc
+            if i < len(_clients) - 1:
+                logger.warning("Gemini key %d/%d failed (%s), trying next", i + 1, len(_clients), exc)
+    raise last_exc
 
 PROMPT_TEMPLATE = """Context:
 Previous decisions: {previous_decisions}
@@ -114,10 +141,7 @@ def _zones_context(zone_id: str | None = None) -> str:
 async def answer_question(question: str, zone_id: str | None = None) -> str:
     prompt = CHAT_PROMPT_TEMPLATE.format(zones_context=_zones_context(zone_id), question=question)
     try:
-        response = await asyncio.wait_for(
-            _client.aio.models.generate_content(model=_MODEL_NAME, contents=prompt),
-            timeout=GEMINI_TIMEOUT_S,
-        )
+        response = await _generate_content(contents=prompt)
         return response.text.strip()
     except Exception as exc:
         logger.warning("Gemini answer_question() failed: %s", exc)
@@ -131,13 +155,9 @@ async def decide(zone_id: str, temperature_f: float, forecast_12h: dict | None) 
         forecast_range_f=_forecast_range_f(forecast_12h),
     )
     try:
-        response = await asyncio.wait_for(
-            _client.aio.models.generate_content(
-                model=_MODEL_NAME,
-                contents=prompt,
-                config=types.GenerateContentConfig(response_mime_type="application/json"),
-            ),
-            timeout=GEMINI_TIMEOUT_S,
+        response = await _generate_content(
+            contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
         )
         parsed = json.loads(response.text)
         action, reasoning = parsed["action"], parsed["reasoning"]

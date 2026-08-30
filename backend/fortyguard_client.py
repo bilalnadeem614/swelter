@@ -12,17 +12,15 @@ BASE_URL = "https://api.fortyguard.com/v1"
 ZONE_HALF_WIDTH_DEG = 0.02
 GRANULARITY = 60
 
-# ponytail: re-verified AGAIN 2026-08-28 (see decisions.md) — the 25h value set 2026-08-27
-# (itself a fix for a prior wrong ~3-4h measurement) is already stale. Sweep tested
-# 25h/30h/36h/48h/72h back from now: 25h through 36h all returned n_cells=0 with no
-# temperature_stats; 48h and 72h both returned full data. Actual boundary sits somewhere
-# between 36h and 48h — using 48h as the confirmed-working mark, no safety margin added
-# since it's already drifted twice in two days. FortyGuard's own docs claim near-real-time
-# data works ("2019-01-01 through 12 hours past the current time") — that claim does not
-# match observed behavior; FortyGuard support separately confirmed no near-real-time
-# endpoint exists. Re-verify if this build is revisited later — this has moved twice
-# already and there's no guarantee it's stable day to day.
-FRESHNESS_LAG = timedelta(hours=48)
+# ponytail: re-verified AGAIN 2026-08-30 (see decisions.md) — 48h is now stale in the OTHER
+# direction. Swept 0h/1h/2h/12h/24h/30h back from now with a live call: every single one
+# returned real temperature_stats, including 0h (the current hour). FortyGuard's docs claim
+# near-real-time works — that claim now matches observed behavior, reversing the 2026-08-28
+# finding. Using 1h, not 0h, as a small safety margin: data only populates at hourly marks,
+# and querying the exact current hour risks hitting it before that hour's tile has finished
+# processing. This value has now moved twice in 2 days (48h -> 1h) — if revisited, re-verify
+# again rather than trusting this comment.
+FRESHNESS_LAG = timedelta(hours=1)
 
 POLL_INTERVAL_S = 2.0
 POLL_TIMEOUT_S = 45.0  # per job; two jobs per zone run concurrently within the 60s function budget

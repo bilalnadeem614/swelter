@@ -13,7 +13,14 @@ export default async function handler(req: any, res: any) {
     return
   }
 
-  const upstream = await fetch(`${backendUrl}/api/check-heat`, {
+  // zone_id: forwarded through so the frontend can call this once per zone instead of once
+  // for all zones — see decisions.md 2026-08-30 for why (shared-budget contention causing
+  // partial "skipped" runs)
+  const zoneId = typeof req.query?.zone_id === "string" ? req.query.zone_id : undefined
+  const upstreamUrl = new URL(`${backendUrl}/api/check-heat`)
+  if (zoneId) upstreamUrl.searchParams.set("zone_id", zoneId)
+
+  const upstream = await fetch(upstreamUrl.toString(), {
     method: "POST",
     headers: { "x-check-heat-secret": secret },
   })

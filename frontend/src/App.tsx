@@ -9,7 +9,7 @@ import { NavBar } from '@/components/NavBar'
 import { LandingPage } from '@/components/LandingPage'
 import { DocsPage } from '@/components/DocsPage'
 import { Button } from '@/components/ui/button'
-import { triggerCheckNow } from '@/lib/api'
+import { triggerCheckNow, fetchZones } from '@/lib/api'
 
 function App() {
   const [view, setView] = useState<'landing' | 'dashboard' | 'docs'>('landing')
@@ -21,22 +21,40 @@ function App() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [checking, setChecking] = useState(false)
   const [checkError, setCheckError] = useState<string | null>(null)
+  const [checkProgress, setCheckProgress] = useState<{ done: number; total: number } | null>(null)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
     localStorage.setItem('swelter-theme', theme)
   }, [theme])
 
+  // Checks one zone at a time (was one request for all zones) — each zone now gets the
+  // backend's full per-request time budget to itself instead of sharing it with the others,
+  // which is what caused only some of 3 zones to complete some runs. See decisions.md
+  // 2026-08-30. Errors on one zone don't stop the rest; failures are collected and shown
+  // together at the end.
   async function handleCheckNow() {
     setChecking(true)
     setCheckError(null)
     try {
-      await triggerCheckNow()
-      setRefreshKey((k) => k + 1)
+      const zones = await fetchZones()
+      setCheckProgress({ done: 0, total: zones.length })
+      const errors: string[] = []
+      for (const [i, zone] of zones.entries()) {
+        try {
+          await triggerCheckNow(zone.id)
+        } catch (err) {
+          errors.push(`${zone.name}: ${err instanceof Error ? err.message : 'failed'}`)
+        }
+        setCheckProgress({ done: i + 1, total: zones.length })
+        setRefreshKey((k) => k + 1)
+      }
+      if (errors.length > 0) setCheckError(errors.join(' · '))
     } catch (err) {
       setCheckError(err instanceof Error ? err.message : 'check failed')
     } finally {
       setChecking(false)
+      setCheckProgress(null)
     }
   }
 
@@ -69,7 +87,11 @@ function App() {
                 <div className="relative">
                   <Button onClick={handleCheckNow} disabled={checking} className="gap-1.5">
                     <RefreshCw className={checking ? 'animate-spin' : ''} />
-                    {checking ? 'Checking… (can take up to a minute)' : 'Check Now'}
+                    {checking
+                      ? checkProgress
+                        ? `Checking zone ${checkProgress.done}/${checkProgress.total}…`
+                        : 'Checking…'
+                      : 'Check Now'}
                   </Button>
                   {checkError && <p className="mt-2 text-sm text-destructive">{checkError}</p>}
                 </div>
