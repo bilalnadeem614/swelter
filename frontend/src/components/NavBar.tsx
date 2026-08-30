@@ -17,7 +17,7 @@ export function NavBar({
   onToggleTheme: () => void
 }) {
   return (
-    <header className="flex items-center gap-6 border-b border-border px-4 py-3 sm:px-6">
+    <header className="sticky top-0 z-10 flex items-center gap-6 border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-md supports-backdrop-filter:bg-background/60 sm:px-6">
       <span className="font-heading text-lg font-bold tracking-tight">SWELTER</span>
       <nav className="flex items-center gap-5 text-sm">
         <button
