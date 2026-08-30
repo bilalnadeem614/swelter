@@ -110,8 +110,10 @@ async def confirm_decision(decision_id: str) -> ConfirmDecisionResponse:
 @app.post("/api/chat")
 async def chat(body: ChatQuestion):
     # Stretch A (pulled forward from Day 4): read-only, grounded in live zone/decision data —
-    # does not write to `decisions`, this is a query not a new autonomous decision
-    return {"answer": await answer_question(body.question)}
+    # does not write to `decisions`, this is a query not a new autonomous decision.
+    # zone_id (set from the zone detail page) scopes the agent to that one site's data only.
+    zone_id = str(body.zone_id) if body.zone_id else None
+    return {"answer": await answer_question(body.question, zone_id)}
 
 
 async def _process_zone(client: FortyGuardClient, zone: dict) -> bool:

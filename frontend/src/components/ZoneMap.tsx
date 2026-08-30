@@ -79,7 +79,7 @@ function ZoneMarkers({
               },
             }}
           >
-            <Popup minWidth={220}>
+            <Popup minWidth={220} maxHeight={260}>
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{zone.name}</span>
@@ -125,11 +125,14 @@ function ZoneMarkers({
 export function ZoneMap({
   onZoneClick,
   refreshKey,
+  zoneId,
 }: {
   onZoneClick: (zoneId: string) => void
   refreshKey?: number
+  // when set, shows only this zone, zoomed in — used by the zone detail page
+  zoneId?: string
 }) {
-  const [zones, setZones] = useState<Zone[] | null>(null)
+  const [allZones, setAllZones] = useState<Zone[] | null>(null)
   const [latestByZone, setLatestByZone] = useState<Record<string, Decision>>({})
   const [error, setError] = useState<string | null>(null)
   const lastChecked = Object.values(latestByZone)
@@ -140,11 +143,13 @@ export function ZoneMap({
   useEffect(() => {
     Promise.all([fetchZones(), fetchLatestDecisions()])
       .then(([zoneRows, decisionRows]) => {
-        setZones(zoneRows)
+        setAllZones(zoneRows)
         setLatestByZone(Object.fromEntries(decisionRows.map((d) => [d.zone_id, d])))
       })
       .catch((err) => setError(err.message))
   }, [refreshKey])
+
+  const zones = zoneId ? allZones?.filter((z) => z.id === zoneId) ?? null : allZones
 
   const bounds: LatLngBoundsExpression | undefined = zones?.length
     ? zones.map((z) => [z.lat, z.lng] as [number, number])

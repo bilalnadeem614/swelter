@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { ZoneMap } from '@/components/ZoneMap'
-import { ChatFeed } from '@/components/ChatFeed'
+import { ZoneStatusCards } from '@/components/ZoneStatusCards'
+import { ComplianceAgent } from '@/components/ComplianceAgent'
+import { DecisionAuditLog } from '@/components/DecisionAuditLog'
+import { ZoneDetail } from '@/components/ZoneDetail'
 import { NavBar } from '@/components/NavBar'
 import { LandingPage } from '@/components/LandingPage'
 import { DocsPage } from '@/components/DocsPage'
@@ -45,30 +48,36 @@ function App() {
       ) : view === 'docs' ? (
         <DocsPage onViewDashboard={() => setView('dashboard')} />
       ) : (
-        <main className="mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-6">
-          <section className="flex flex-col gap-3 py-4 sm:py-6">
-            <h1 className="text-2xl font-heading font-medium sm:text-3xl">Swelter</h1>
-            <p className="text-base text-muted-foreground sm:text-lg">
-              Autonomous AI heat risk monitoring for small construction and landscaping crews.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Small contractors lack an affordable, automated way to track heat risk and keep OSHA
-              compliance records — safety managers and owner-operators in high-heat states (AZ, TX, FL)
-              are stuck doing it manually, or not at all. Enterprise crews already have hardware-based
-              alert systems; Swelter is the first hardware-free, AI-reasoning agent that watches hyperlocal
-              conditions, decides when action is needed, and logs every decision for an audit trail —
-              enterprise-grade protection at a small contractor's price point.
-            </p>
-            <div>
-              <Button onClick={handleCheckNow} disabled={checking} className="gap-1.5">
-                <RefreshCw className={checking ? 'animate-spin' : ''} />
-                {checking ? 'Checking… (can take up to a minute)' : 'Check Now'}
-              </Button>
-              {checkError && <p className="mt-2 text-sm text-destructive">{checkError}</p>}
-            </div>
-          </section>
-          <ZoneMap onZoneClick={setSelectedZoneId} refreshKey={refreshKey} />
-          <ChatFeed zoneId={selectedZoneId} onClearZone={() => setSelectedZoneId(undefined)} refreshKey={refreshKey} />
+        <main className="mx-auto flex max-w-6xl flex-col gap-4 p-4 sm:p-6">
+          {selectedZoneId ? (
+            <ZoneDetail zoneId={selectedZoneId} onBack={() => setSelectedZoneId(undefined)} refreshKey={refreshKey} />
+          ) : (
+            <>
+              <section className="flex flex-wrap items-center justify-between gap-3 py-2">
+                <div>
+                  <h1 className="font-heading text-2xl font-medium sm:text-3xl">Infrastructure Command</h1>
+                  <p className="text-sm text-muted-foreground">
+                    Autonomous AI heat risk monitoring — active watch zones below.
+                  </p>
+                </div>
+                <div>
+                  <Button onClick={handleCheckNow} disabled={checking} className="gap-1.5">
+                    <RefreshCw className={checking ? 'animate-spin' : ''} />
+                    {checking ? 'Checking… (can take up to a minute)' : 'Check Now'}
+                  </Button>
+                  {checkError && <p className="mt-2 text-sm text-destructive">{checkError}</p>}
+                </div>
+              </section>
+              <ZoneStatusCards onSelectZone={setSelectedZoneId} refreshKey={refreshKey} />
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <ZoneMap onZoneClick={setSelectedZoneId} refreshKey={refreshKey} />
+                </div>
+                <ComplianceAgent />
+              </div>
+              <DecisionAuditLog refreshKey={refreshKey} />
+            </>
+          )}
         </main>
       )}
     </>
