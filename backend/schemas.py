@@ -44,3 +44,6 @@ class ConfirmDecisionResponse(BaseModel):
 
 class ChatQuestion(BaseModel):
     question: str
+    # when set, the agent only sees this zone's data — used by the zone detail page so it
+    # can't answer with, or act on, other sites' data
+    zone_id: UUID | None = None

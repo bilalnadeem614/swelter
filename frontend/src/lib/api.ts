@@ -89,12 +89,13 @@ export async function confirmDecision(id: string): Promise<{ id: string; field_c
   return res.json()
 }
 
-// Stretch A: read-only, no secret needed — public endpoint, hits the backend directly
-export async function askAgent(question: string): Promise<string> {
+// Stretch A: read-only, no secret needed — public endpoint, hits the backend directly.
+// zoneId scopes the agent to that one site's data only (used on the zone detail page).
+export async function askAgent(question: string, zoneId?: string): Promise<string> {
   const res = await fetch(`${BASE_URL}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, zone_id: zoneId ?? null }),
   })
   if (!res.ok) throw new Error(`chat failed: ${res.status}`)
   const data = await res.json()

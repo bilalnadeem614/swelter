@@ -74,17 +74,22 @@ Question: {question}
 Answer:"""
 
 
-def _zones_context() -> str:
+def _zones_context(zone_id: str | None = None) -> str:
     # Stretch A (pulled forward from Day 4): same latest-decision-per-zone shape as
-    # /api/decisions/latest, plus zone names, flattened into a short block for the prompt
-    zones = supabase.table("zones").select("id,name").eq("active", True).execute().data
-    rows = (
-        supabase.table("decisions")
-        .select("zone_id,action,reasoning,reading:readings(temperature_f,forecast_12h)")
-        .order("created_at", desc=True)
-        .execute()
-        .data
+    # /api/decisions/latest, plus zone names, flattened into a short block for the prompt.
+    # zone_id scopes this to a single zone — used by the zone detail page's agent so it
+    # only ever sees (and can only recommend/act on) that one site's data.
+    zones_query = supabase.table("zones").select("id,name").eq("active", True)
+    if zone_id:
+        zones_query = zones_query.eq("id", zone_id)
+    zones = zones_query.execute().data
+
+    decisions_query = supabase.table("decisions").select(
+        "zone_id,action,reasoning,reading:readings(temperature_f,forecast_12h)"
     )
+    if zone_id:
+        decisions_query = decisions_query.eq("zone_id", zone_id)
+    rows = decisions_query.order("created_at", desc=True).execute().data
     latest_by_zone: dict[str, dict] = {}
     for row in rows:
         latest_by_zone.setdefault(row["zone_id"], row)
@@ -106,8 +111,8 @@ def _zones_context() -> str:
     return "\n".join(lines) if lines else "no active zones"
 
 
-async def answer_question(question: str) -> str:
-    prompt = CHAT_PROMPT_TEMPLATE.format(zones_context=_zones_context(), question=question)
+async def answer_question(question: str, zone_id: str | None = None) -> str:
+    prompt = CHAT_PROMPT_TEMPLATE.format(zones_context=_zones_context(zone_id), question=question)
     try:
         response = await asyncio.wait_for(
             _client.aio.models.generate_content(model=_MODEL_NAME, contents=prompt),
