@@ -19,7 +19,7 @@ export function exportDecisionLogPdf(decisions: Decision[], zoneNames: Record<st
   doc.setTextColor(100)
   doc.text(`Generated ${generated.toLocaleString()}`, 14, 24)
   doc.text(
-    "Data source: FortyGuard hyperlocal temperature data, ~48h ingestion lag — see README for methodology.",
+    "Data source: FortyGuard hyperlocal temperature data, ~1h ingestion lag — see README for methodology.",
     14,
     29,
   )

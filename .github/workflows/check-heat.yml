@@ -9,8 +9,19 @@ jobs:
   check-heat:
     runs-on: ubuntu-latest
     steps:
-      - name: POST /api/check-heat
+      # One request per zone instead of one request for all zones — each zone now gets the
+      # backend's full per-request time budget to itself, instead of sharing it with the
+      # other zones, which was causing only some of them to finish in a given run. See
+      # decisions.md 2026-08-30. /api/zones is public (no secret) and used only to discover
+      # the current zone ids; /api/check-heat still requires CHECK_HEAT_SECRET per call.
+      - name: Check each active zone
         run: |
-          curl -sS -X POST "https://swelter-iota.vercel.app/api/check-heat" \
-            -H "X-Check-Heat-Secret: ${{ secrets.CHECK_HEAT_SECRET }}" \
-            --fail-with-body
+          set -e
+          zone_ids=$(curl -sS "https://swelter-iota.vercel.app/api/zones" | jq -r '.[].id')
+          for zone_id in $zone_ids; do
+            echo "Checking zone $zone_id"
+            curl -sS -X POST "https://swelter-iota.vercel.app/api/check-heat?zone_id=$zone_id" \
+              -H "X-Check-Heat-Secret: ${{ secrets.CHECK_HEAT_SECRET }}" \
+              --fail-with-body
+            echo
+          done

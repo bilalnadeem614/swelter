@@ -114,7 +114,7 @@ export function DocsPage({ onViewDashboard }: { onViewDashboard: () => void }) {
         </div>
         <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
           Readings are the latest available from FortyGuard's hyperlocal API,
-          which has an ingestion lag of roughly 48 hours; this is disclosed in
+          which has a small ingestion lag of roughly 1 hour; this is disclosed in
           the app (see the label under each zone's reading) and in the PDF
           export rather than presented as real-time.
         </p>

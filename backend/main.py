@@ -22,18 +22,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# leaves headroom under Vercel's 60s function limit for the Supabase writes bookending the wait
-CHECK_HEAT_BUDGET_S = 50.0
+# leaves headroom under Vercel's 60s function limit for the Supabase writes bookending the wait.
+# 2026-08-30 — confirmed Hobby plan, 60s is a hard ceiling (can't be raised via vercel.json on
+# this plan), so this can't go higher. Bumped 50 -> 55 only because HEAT_INDEX_TIMEOUT_S below
+# was cut in the same change, keeping total headroom roughly where it was.
+CHECK_HEAT_BUDGET_S = 55.0
 
 # ponytail: 2026-08-29 — live testing showed a single FortyGuard job alone taking 31-40s right
 # now; env_params running sequentially after get_current_temp_f/get_forecast_12h was pushing
 # every zone past CHECK_HEAT_BUDGET_S (0/3 processed, twice in a row on the live deploy).
 # Capped so it can't eat the whole budget — best-effort heat index, not a hard requirement.
-HEAT_INDEX_TIMEOUT_S = 12.0
+# 2026-08-30 — re-measured live: get_current_temp_f + get_forecast_12h (concurrent) alone took
+# ~42s, i.e. FortyGuard's own latency now eats nearly the entire budget even for ONE zone with
+# zero contention (the per-zone split fixed cross-zone contention, but not this). Cut from 12
+# to 6 to leave real room for decide()/writes/push after it — heat index is still attempted,
+# just can't eat as much of an already-tight budget. Falls back to raw temp_f either way.
+HEAT_INDEX_TIMEOUT_S = 6.0
 
 # push fan-out must never be why a zone gets reported "skipped" when its reading/decision
-# were already written — bounded and swallowed, same pattern as HEAT_INDEX_TIMEOUT_S
-PUSH_TIMEOUT_S = 8.0
+# were already written — bounded and swallowed, same pattern as HEAT_INDEX_TIMEOUT_S.
+# Cut 8 -> 5 in the same 2026-08-30 pass, same reason: less budget to spare now that Gemini
+# can spend up to 3x GEMINI_TIMEOUT_S rotating through backup keys.
+PUSH_TIMEOUT_S = 5.0
 
 
 def _risk_level(temp_f: float, heat_index_f: float | None) -> str:
@@ -197,11 +207,26 @@ async def _process_zone(client: FortyGuardClient, zone: dict) -> bool:
 
 
 @app.post("/api/check-heat")
-async def check_heat(x_check_heat_secret: str = Header(default="")):
+async def check_heat(
+    zone_id: str | None = Query(default=None),
+    x_check_heat_secret: str = Header(default=""),
+):
+    # zone_id (optional): process just this one zone instead of every active zone.
+    # 2026-08-30 — introduced so a single slow/rate-limited zone can't eat the shared
+    # CHECK_HEAT_BUDGET_S and cause OTHER zones to get cancelled and reported "skipped"
+    # alongside it. Omitted, this behaves exactly as before (all active zones, one shared
+    # budget) — GitHub Actions and the frontend's "Check Now" now both call this once per
+    # zone instead, see decisions.md.
     if x_check_heat_secret != settings.CHECK_HEAT_SECRET:
         raise HTTPException(status_code=401, detail="unauthorized")
 
-    zones = supabase.table("zones").select("*").eq("active", True).execute().data
+    zones_query = supabase.table("zones").select("*").eq("active", True)
+    if zone_id:
+        zones_query = zones_query.eq("id", zone_id)
+    zones = zones_query.execute().data
+    if zone_id and not zones:
+        raise HTTPException(status_code=404, detail="zone not found or not active")
+
     client = FortyGuardClient(settings.FORTYGUARD_API_KEY)
     try:
         tasks = {asyncio.create_task(_process_zone(client, zone)): zone["id"] for zone in zones}

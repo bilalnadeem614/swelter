@@ -21,9 +21,10 @@ export type Reading = {
 
 const cToF = (c: number) => (c * 9) / 5 + 32
 
-// ponytail: mirrors backend/fortyguard_client.py FRESHNESS_LAG (timedelta(hours=48)) — no
+// ponytail: mirrors backend/fortyguard_client.py FRESHNESS_LAG (timedelta(hours=1) as of
+// 2026-08-30 re-verification — was 48h, dropped to near-real-time, see decisions.md) — no
 // endpoint exposes this value, so it's hardcoded here; keep in sync if the backend constant drifts
-export const FRESHNESS_LAG_HOURS = 48
+export const FRESHNESS_LAG_HOURS = 1
 
 export function tempTrend(current?: number | null, previous?: number | null): "up" | "down" | "flat" {
   if (current == null || previous == null) return "flat"
@@ -75,9 +76,13 @@ export const fetchDecisions = (zoneId?: string) =>
 export const fetchLatestDecisions = () => get<Decision[]>("/api/decisions/latest")
 
 // hits the frontend's own /api/check-heat proxy (same origin) — never calls the backend
-// secret-protected route directly, see decisions.md "Check Now proxy" entry
-export async function triggerCheckNow(): Promise<{ processed: string[]; skipped: string[] }> {
-  const res = await fetch("/api/check-heat", { method: "POST" })
+// secret-protected route directly, see decisions.md "Check Now proxy" entry.
+// zoneId: check just one zone — App.tsx now calls this once per zone in sequence instead of
+// once for all zones, so a slow zone can't eat the shared backend budget and cause other
+// zones to be reported "skipped" alongside it (see decisions.md 2026-08-30).
+export async function triggerCheckNow(zoneId?: string): Promise<{ processed: string[]; skipped: string[] }> {
+  const url = zoneId ? `/api/check-heat?zone_id=${encodeURIComponent(zoneId)}` : "/api/check-heat"
+  const res = await fetch(url, { method: "POST" })
   if (!res.ok) throw new Error(`check-heat failed: ${res.status}`)
   return res.json()
 }
